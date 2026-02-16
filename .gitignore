@@ -1,0 +1,55 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+app.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files (exclude exploratory tests, keep unit tests)
+test_ldap_*.py
+test_flask_*.py
+test_get_*.py
+test_current_*.py
+verify_*.py
+test_production_*.py
+
+# User data
+*_ldap_data.json
