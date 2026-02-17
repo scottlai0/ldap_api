@@ -240,8 +240,8 @@ Edit `deploy/krb5.conf` with your domain details:
 ```
 
 **Replace:**
-- `YOURDOMAIN.COM` → Your domain in uppercase (e.g., `MICRON.COM`)
-- `yourdomain.com` → Your domain in lowercase (e.g., `micron.com`)
+- `YOURDOMAIN.COM` → Your domain in uppercase (e.g., `COMPANY.COM`)
+- `yourdomain.com` → Your domain in lowercase (e.g., `company.com`)
 - `dc01.yourdomain.com` → Your domain controller hostname
 
 **Quick detection (PowerShell):**

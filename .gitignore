@@ -1,6 +1,10 @@
 # Environment variables
 .env
 
+# Kerberos files (contain sensitive information)
+*.keytab
+deploy/krb5.conf
+
 # Python
 __pycache__/
 *.py[cod]

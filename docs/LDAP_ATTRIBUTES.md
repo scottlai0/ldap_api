@@ -86,10 +86,10 @@ This document lists common attributes available in LDAP/Active Directory that th
 - `comment` - Comments field
 - `description` - Description field
 
-## Micron-Specific Attributes (Examples)
+## Custom Attributes (Examples)
 
-- `MTgroup` - Micron group assignment (custom attribute)
-- Other custom attributes specific to Micron's Active Directory schema
+Your organization may have custom attributes specific to your Active Directory schema.
+Check with your IT department for organization-specific attributes.
 
 ## Distinguished Name & Path
 

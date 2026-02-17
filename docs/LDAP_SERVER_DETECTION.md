@@ -29,14 +29,14 @@ Write-Host "`nBase DN: $baseDN"
 
 **Example Output:**
 ```
-LDAP Server: DC01.micron.com
-Domain: micron.com
+LDAP Server: DC01.company.com
+Domain: company.com
 
 All Domain Controllers:
-  - DC01.micron.com
-  - DC02.micron.com
+  - DC01.company.com
+  - DC02.company.com
 
-Base DN: DC=micron,DC=com
+Base DN: DC=company,DC=com
 ```
 
 ### Method 2: Using Command Prompt
@@ -54,10 +54,10 @@ nltest /dclist:%USERDNSDOMAIN%
 
 **Example Output:**
 ```
-DC: \\DC01.micron.com
+DC: \\DC01.company.com
 Address: \\192.168.1.10
 Dom Guid: 12345678-1234-1234-1234-123456789012
-Dom Name: micron.com
+Dom Name: company.com
 ```
 
 ### Method 3: Using Environment Variables
@@ -71,8 +71,8 @@ Write-Host "Logon Server: $env:LOGONSERVER"
 
 **Example Output:**
 ```
-DNS Domain: micron.com
-Domain: MICRON
+DNS Domain: company.com
+Domain: COMPANY
 Logon Server: \\DC01
 ```
 
@@ -87,16 +87,16 @@ Logon Server: \\DC01
 nslookup -type=SRV _ldap._tcp.dc._msdcs.yourdomain.com
 
 # Example:
-nslookup -type=SRV _ldap._tcp.dc._msdcs.micron.com
+nslookup -type=SRV _ldap._tcp.dc._msdcs.company.com
 ```
 
 **Example Output:**
 ```
-_ldap._tcp.dc._msdcs.micron.com SRV service location:
+_ldap._tcp.dc._msdcs.company.com SRV service location:
   priority       = 0
   weight         = 100
   port           = 389
-  svr hostname   = DC01.micron.com
+  svr hostname   = DC01.company.com
 ```
 
 ### Using Active Directory PowerShell Module
@@ -117,10 +117,10 @@ Get-ADDomainController -Discover
 
 **Example Output:**
 ```
-DistinguishedName : DC=micron,DC=com
-DNSRoot           : micron.com
-NetBIOSName       : MICRON
-PDCEmulator       : DC01.micron.com
+DistinguishedName : DC=company,DC=com
+DNSRoot           : company.com
+NetBIOSName       : COMPANY
+PDCEmulator       : DC01.company.com
 ```
 
 ### Using LDAP Query Tool (ldp.exe)
@@ -144,44 +144,44 @@ Based on detection results, configure your `.env`:
 
 ```bash
 # Example 1: Single domain controller
-LDAP_SERVER=ldap://DC01.micron.com
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldap://DC01.company.com
+LDAP_BASE_DN=DC=company,DC=com
 
 # Example 2: Multiple domain controllers (load balancing)
-LDAP_SERVER=ldap://DC01.micron.com,ldap://DC02.micron.com
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldap://DC01.company.com,ldap://DC02.company.com
+LDAP_BASE_DN=DC=company,DC=com
 
 # Example 3: Using domain name (DNS round-robin)
-LDAP_SERVER=ldap://micron.com
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldap://company.com
+LDAP_BASE_DN=DC=company,DC=com
 
 # Example 4: Secure LDAP (LDAPS)
-LDAP_SERVER=ldaps://DC01.micron.com:636
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldaps://DC01.company.com:636
+LDAP_BASE_DN=DC=company,DC=com
 
 # Example 5: Global Catalog (port 3268)
-LDAP_SERVER=ldap://DC01.micron.com:3268
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldap://DC01.company.com:3268
+LDAP_BASE_DN=DC=company,DC=com
 ```
 
 ### For Kerberos (krb5.conf)
 
 ```ini
 [libdefaults]
-    default_realm = MICRON.COM
+    default_realm = COMPANY.COM
     dns_lookup_realm = false
     dns_lookup_kdc = true
 
 [realms]
-    MICRON.COM = {
-        kdc = DC01.micron.com
-        admin_server = DC01.micron.com
-        default_domain = micron.com
+    COMPANY.COM = {
+        kdc = DC01.company.com
+        admin_server = DC01.company.com
+        default_domain = company.com
     }
 
 [domain_realm]
-    .micron.com = MICRON.COM
-    micron.com = MICRON.COM
+    .company.com = COMPANY.COM
+    company.com = COMPANY.COM
 ```
 
 ---
@@ -192,8 +192,8 @@ LDAP_BASE_DN=DC=micron,DC=com
 
 ```powershell
 # Test LDAP connection
-$ldapServer = "DC01.micron.com"
-$baseDN = "DC=micron,DC=com"
+$ldapServer = "DC01.company.com"
+$baseDN = "DC=company,DC=com"
 
 try {
     $searcher = New-Object System.DirectoryServices.DirectorySearcher
@@ -217,11 +217,11 @@ try {
 
 ```bash
 # Test LDAP connection
-ldapsearch -H ldap://DC01.micron.com -b "DC=micron,DC=com" -x "(objectClass=*)" -LLL
+ldapsearch -H ldap://DC01.company.com -b "DC=company,DC=com" -x "(objectClass=*)" -LLL
 
 # Test with Kerberos
-kinit username@MICRON.COM
-ldapsearch -H ldap://DC01.micron.com -b "DC=micron,DC=com" -Y GSSAPI "(objectClass=*)" -LLL
+kinit username@COMPANY.COM
+ldapsearch -H ldap://DC01.company.com -b "DC=company,DC=com" -Y GSSAPI "(objectClass=*)" -LLL
 ```
 
 ### Using Python (ldap3)
@@ -230,7 +230,7 @@ ldapsearch -H ldap://DC01.micron.com -b "DC=micron,DC=com" -Y GSSAPI "(objectCla
 from ldap3 import Server, Connection, ALL
 
 # Test connection
-server = Server('ldap://DC01.micron.com', get_info=ALL)
+server = Server('ldap://DC01.company.com', get_info=ALL)
 conn = Connection(server, auto_bind=True)
 
 if conn.bound:
@@ -380,8 +380,8 @@ $d = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain(); Writ
 
 **Example Output:**
 ```
-LDAP_SERVER=ldap://DC01.micron.com
-LDAP_BASE_DN=DC=micron,DC=com
+LDAP_SERVER=ldap://DC01.company.com
+LDAP_BASE_DN=DC=company,DC=com
 ```
 
 ### Batch Script

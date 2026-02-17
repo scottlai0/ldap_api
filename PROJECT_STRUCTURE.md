@@ -12,6 +12,7 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 ├── .env.example                    # Environment variables template
 ├── .gitignore                      # Git ignore rules
 ├── README.md                       # Project documentation
+├── PROJECT_STRUCTURE.md            # This file
 │
 ├── deploy/                         # Deployment files
 │   ├── Dockerfile                  # Docker image definition
@@ -20,8 +21,7 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 │   ├── .dockerignore               # Docker ignore rules
 │   ├── kubernetes.yml              # Kubernetes deployment config
 │   ├── krb5.conf.example           # Kerberos configuration template
-│   ├── create-keytab-simple.ps1    # ✅ Keytab creation (recommended)
-│   ├── create-keytab.ps1           # Keytab creation (full-featured, needs RSAT)
+│   ├── create-keytab.ps1           # Automated keytab creation script
 │   ├── test-docker.sh              # Docker testing script
 │   ├── README.md                   # Deployment overview
 │   ├── DOCKER_DEPLOYMENT.md        # Docker deployment guide
@@ -45,6 +45,7 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 ### Configuration
 - **`.env.example`** - Template for environment variables
   - Copy to `.env` and configure for your environment
+  - `.env` is in `.gitignore` (not committed)
 
 ### Deployment
 
@@ -54,18 +55,24 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 - **`deploy/requirements-docker.txt`** - Docker-specific Python packages
 
 #### Kerberos/Keytab
-- **`deploy/create-keytab-simple.ps1`** - **Recommended** - Simple keytab creation
-- **`deploy/create-keytab.ps1`** - Full-featured (requires RSAT tools)
+- **`deploy/create-keytab.ps1`** - **Automated keytab creation**
+  - Checks for RSAT tools
+  - Offers to install RSAT automatically
+  - Creates keytab file
 - **`deploy/krb5.conf.example`** - Kerberos configuration template
+  - Copy to `krb5.conf` and configure
+  - `krb5.conf` is in `.gitignore` (not committed)
 
 #### Kubernetes
 - **`deploy/kubernetes.yml`** - Kubernetes deployment manifest
 
 ### Documentation
 - **`README.md`** - Main project documentation
+- **`PROJECT_STRUCTURE.md`** - This file
 - **`deploy/README.md`** - Deployment overview
 - **`deploy/DOCKER_DEPLOYMENT.md`** - Detailed Docker deployment guide
 - **`deploy/KEYTAB_GUIDE.md`** - Comprehensive keytab guide
+- **`docs/LDAP_SERVER_DETECTION.md`** - 📖 **Start here!** Find your LDAP server
 - **`docs/LDAP_ATTRIBUTES.md`** - LDAP attribute reference
 - **`docs/PRODUCTION_READINESS_ASSESSMENT.md`** - Production checklist
 
@@ -79,6 +86,7 @@ pip install -r requirements.txt
 # Configure environment
 copy .env.example .env
 # Edit .env with your settings
+# Need help? See docs/LDAP_SERVER_DETECTION.md
 
 # Run application
 python app.py
@@ -89,10 +97,22 @@ python app.py
 #### Step 1: Create Keytab
 ```powershell
 # Run as Administrator
-.\deploy\create-keytab-simple.ps1
+.\deploy\create-keytab.ps1
 ```
 
-#### Step 2: Deploy
+The script will automatically:
+- Check if RSAT tools are installed
+- Offer to install RSAT if missing
+- Create the keytab file
+
+#### Step 2: Configure Kerberos
+```bash
+# Copy and edit krb5.conf
+cp deploy/krb5.conf.example deploy/krb5.conf
+# Edit with your domain details
+```
+
+#### Step 3: Deploy
 ```bash
 cd deploy
 docker-compose up -d
@@ -113,16 +133,26 @@ kubectl apply -f deploy/kubernetes.yml
 
 See [`.env.example`](.env.example) for all available configuration options:
 
+**Required:**
 - `LDAP_SERVER` - LDAP server address
 - `LDAP_BASE_DN` - Base DN for searches
-- `KRB5_KTNAME` - Path to keytab file (Docker only)
-- `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR)
+
+**Optional:**
+- `LDAP_POOL_SIZE` - Connection pool size (default: 10)
+- `LDAP_POOL_KEEPALIVE` - Connection lifetime (default: 300s)
+- `LOG_LEVEL` - Logging level (default: INFO)
+- `FLASK_DEBUG` - Debug mode (default: False)
+
+**Don't know your LDAP server?** See [`docs/LDAP_SERVER_DETECTION.md`](docs/LDAP_SERVER_DETECTION.md)
 
 ## Testing
 
 ```bash
 # Run tests
 pytest tests/
+
+# Or using unittest
+python -m unittest tests/test_app.py
 
 # Test Docker deployment
 cd deploy
@@ -144,9 +174,24 @@ cd deploy
 - **[`docs/LDAP_ATTRIBUTES.md`](docs/LDAP_ATTRIBUTES.md)** - LDAP attribute reference
 - **[`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md)** - Production checklist
 
+## Security Notes
+
+### Files in `.gitignore` (Not Committed)
+- `.env` - Your actual LDAP configuration
+- `deploy/krb5.conf` - Your actual Kerberos configuration
+- `*.keytab` - Authentication credentials
+- `*.log` - Log files
+
+### Best Practices
+- ✅ Never commit `.env` or `krb5.conf` to version control
+- ✅ Never commit `*.keytab` files
+- ✅ Use dedicated service accounts (not personal accounts)
+- ✅ Rotate keytabs every 90-180 days
+- ✅ Use secrets management in production (Kubernetes secrets, Azure Key Vault)
+
 ## Support
 
 For issues or questions:
-1. Check the documentation in `docs/` and `deploy/`
+1. Check the documentation in [`docs/`](docs/) and [`deploy/`](deploy/)
 2. Review the keytab guide for authentication issues
 3. Check logs: `docker-compose logs -f` (Docker) or application logs
