@@ -1,0 +1,166 @@
+# Kubernetes Deployment for LDAP Auth App
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldap-config
+  namespace: default
+data:
+  LDAP_SERVER: "ldap://dc.domain.com"
+  LDAP_BASE_DN: "DC=domain,DC=com"
+  LDAP_USER_DN: "CN=Users,DC=domain,DC=com"
+  LDAP_POOL_SIZE: "10"
+  LDAP_POOL_KEEPALIVE: "300"
+  FLASK_DEBUG: "False"
+  FLASK_HOST: "0.0.0.0"
+  FLASK_PORT: "5000"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krb5-config
+  namespace: default
+data:
+  krb5.conf: |
+    [libdefaults]
+        default_realm = DOMAIN.COM
+        dns_lookup_realm = false
+        dns_lookup_kdc = true
+    
+    [realms]
+        DOMAIN.COM = {
+            kdc = dc.domain.com
+            admin_server = dc.domain.com
+        }
+    
+    [domain_realm]
+        .domain.com = DOMAIN.COM
+        domain.com = DOMAIN.COM
+
+---
+# Secret for Kerberos keytab (create manually)
+# kubectl create secret generic kerberos-keytab --from-file=keytab=./app.keytab
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-auth
+  namespace: default
+  labels:
+    app: ldap-auth
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ldap-auth
+  template:
+    metadata:
+      labels:
+        app: ldap-auth
+    spec:
+      containers:
+      - name: ldap-auth
+        image: ldap-auth-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+          name: http
+          protocol: TCP
+        
+        envFrom:
+        - configMapRef:
+            name: ldap-config
+        
+        volumeMounts:
+        - name: krb5-config
+          mountPath: /etc/krb5.conf
+          subPath: krb5.conf
+          readOnly: true
+        # Uncomment if using Kerberos keytab
+        # - name: keytab
+        #   mountPath: /app/keytab
+        #   subPath: keytab
+        #   readOnly: true
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      
+      volumes:
+      - name: krb5-config
+        configMap:
+          name: krb5-config
+      # Uncomment if using Kerberos keytab
+      # - name: keytab
+      #   secret:
+      #     secretName: kerberos-keytab
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-auth-service
+  namespace: default
+  labels:
+    app: ldap-auth
+spec:
+  type: LoadBalancer
+  selector:
+    app: ldap-auth
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+    name: http
+
+---
+# Optional: Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ldap-auth-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ldap-auth
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

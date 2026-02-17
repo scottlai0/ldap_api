@@ -1,0 +1,8 @@
+# Requirements for Docker/Linux deployment
+# Note: Uses gssapi instead of winkerberos (Windows-only)
+
+Flask==3.0.0
+Werkzeug==3.0.1
+ldap3==2.9.1
+python-dotenv==1.0.0
+gssapi==1.8.3

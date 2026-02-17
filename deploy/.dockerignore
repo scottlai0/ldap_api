@@ -1,0 +1,19 @@
+# Ignore files not needed in Docker image
+.env
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+*.md
+docs/
+deploy/
+test_*.py
+*_test.py
+.vscode/
+.idea/
+*.swp
+*.swo

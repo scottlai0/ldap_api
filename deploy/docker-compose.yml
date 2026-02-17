@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  ldap-auth:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: ldap-auth-app
+    ports:
+      - "5000:5000"
+    environment:
+      # LDAP Configuration
+      - LDAP_SERVER=${LDAP_SERVER:-ldap://dc.domain.com}
+      - LDAP_BASE_DN=${LDAP_BASE_DN:-DC=domain,DC=com}
+      - LDAP_USER_DN=${LDAP_USER_DN:-CN=Users,DC=domain,DC=com}
+      
+      # Connection Pool Configuration
+      - LDAP_POOL_SIZE=${LDAP_POOL_SIZE:-10}
+      - LDAP_POOL_KEEPALIVE=${LDAP_POOL_KEEPALIVE:-300}
+      
+      # Flask Configuration
+      - FLASK_DEBUG=${FLASK_DEBUG:-False}
+      - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${FLASK_PORT:-5000}
+    
+    # Kerberos configuration for Windows Authentication
+    volumes:
+      - ./krb5.conf:/etc/krb5.conf:ro  # Kerberos configuration
+      # - ./app.keytab:/app/keytab:ro    # Kerberos keytab (uncomment after creating keytab)
+    
+    networks:
+      - ldap-network
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  ldap-network:
+    driver: bridge

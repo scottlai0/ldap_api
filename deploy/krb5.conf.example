@@ -1,0 +1,27 @@
+# Kerberos Configuration for Windows Authentication
+# Copy this file to krb5.conf and update with your domain details
+
+[libdefaults]
+    default_realm = DOMAIN.COM
+    dns_lookup_realm = false
+    dns_lookup_kdc = true
+    ticket_lifetime = 24h
+    renew_lifetime = 7d
+    forwardable = true
+
+[realms]
+    DOMAIN.COM = {
+        kdc = dc01.domain.com
+        kdc = dc02.domain.com
+        admin_server = dc01.domain.com
+        default_domain = domain.com
+    }
+
+[domain_realm]
+    .domain.com = DOMAIN.COM
+    domain.com = DOMAIN.COM
+
+[logging]
+    default = FILE:/var/log/krb5libs.log
+    kdc = FILE:/var/log/krb5kdc.log
+    admin_server = FILE:/var/log/kadmind.log
