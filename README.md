@@ -405,15 +405,9 @@ See [`deploy/KEYTAB_GUIDE.md`](deploy/KEYTAB_GUIDE.md) for more troubleshooting.
 5. Monitor with `/health` endpoint
 
 ---
-
-## License
-
-[Your License Here]
-
 ## Support
 
 For issues or questions:
 1. Check the documentation in [`docs/`](docs/) and [`deploy/`](deploy/)
 2. Review the keytab guide for authentication issues
 3. Check logs: `docker-compose logs -f` (Docker) or application logs
-4. Open an issue on GitHub
