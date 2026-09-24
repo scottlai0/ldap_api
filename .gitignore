@@ -57,3 +57,6 @@ test_production_*.py
 
 # User data
 *_ldap_data.json
+
+# AI review
+PRODUCTION_READINESS_ASSESSMENT.md
