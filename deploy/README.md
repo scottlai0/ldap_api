@@ -4,35 +4,27 @@ This folder contains deployment configurations for the LDAP Authentication appli
 
 ## Files
 
-### Core Deployment
+**Core deployment**
 - **`Dockerfile`** - Docker image definition
 - **`docker-compose.yml`** - Docker Compose configuration
 - **`kubernetes.yml`** - Kubernetes deployment manifests
 - **`requirements-docker.txt`** - Docker-specific Python dependencies
 - **`.dockerignore`** - Files to exclude from Docker build
 
-### Kerberos/Authentication
-- **`create-keytab-simple.ps1`** - **Recommended** - Simple keytab creation script
-- **`create-keytab.ps1`** - Full-featured keytab creation (requires RSAT)
+**Kerberos/authentication**
+- **`create-keytab.ps1`** - Automated keytab creation (offers to install RSAT if missing)
 - **`krb5.conf.example`** - Kerberos configuration template
 
-### Documentation
-- **`README.md`** - This file (deployment overview)
-- **`DOCKER_DEPLOYMENT.md`** - Complete Docker deployment guide
-- **`KEYTAB_GUIDE.md`** - Comprehensive keytab guide
-
-### Testing
+**Testing**
 - **`test-docker.sh`** - Docker deployment testing script
-
----
 
 ## Quick Start
 
-### Docker Deployment
+**Docker:**
 
 ```bash
 # 1. Create keytab (one-time setup)
-.\create-keytab-simple.ps1
+.\create-keytab.ps1
 
 # 2. Build and run
 docker-compose up -d
@@ -42,7 +34,7 @@ docker-compose ps
 docker-compose logs -f
 ```
 
-### Kubernetes Deployment
+**Kubernetes:**
 
 ```bash
 # 1. Create keytab secret
@@ -55,8 +47,6 @@ kubectl apply -f kubernetes.yml
 kubectl get pods -l app=ldap-auth
 kubectl logs -l app=ldap-auth -f
 ```
-
----
 
 ## Configuration
 
@@ -80,16 +70,12 @@ FLASK_DEBUG=False
 
 **For Docker/Kubernetes deployments, you MUST create a keytab:**
 
-1. **Create keytab using the automated script:**
+1. **Create the keytab with the automated script** (run as Administrator):
    ```powershell
-   # Run as Administrator
    .\create-keytab.ps1
    ```
-   
-   The script will:
-   - Check if RSAT tools are installed
-   - Offer to install RSAT automatically if missing
-   - Guide you through keytab creation
+
+   The script checks whether the RSAT tools are installed, offers to install them if missing, and walks you through keytab creation.
 
 2. **Configure Kerberos:**
    ```bash
@@ -98,17 +84,13 @@ FLASK_DEBUG=False
    # Update with your domain details
    ```
 
-3. **Mount in container:**
-   - Docker: Already configured in `docker-compose.yml`
-   - Kubernetes: Create secret and mount (see `kubernetes.yml`)
+3. **Mount it in the container.** Docker Compose is already configured in `docker-compose.yml`; for Kubernetes, create a secret and mount it (see `kubernetes.yml`).
 
 See [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) for detailed instructions.
 
----
-
 ## Health Checks
 
-All deployments include health checks on `/health` endpoint:
+All deployments include health checks on the `/health` endpoint:
 
 ```bash
 # Test health
@@ -116,6 +98,7 @@ curl http://localhost:5000/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "healthy",
@@ -123,18 +106,16 @@ Expected response:
 }
 ```
 
----
-
 ## Scaling
 
-### Docker Compose
+**Docker Compose:**
 
 ```bash
 # Scale to 3 instances
 docker-compose up -d --scale ldap-auth=3
 ```
 
-### Kubernetes
+**Kubernetes:**
 
 ```bash
 # Manual scaling
@@ -144,29 +125,23 @@ kubectl scale deployment ldap-auth --replicas=5
 kubectl get hpa ldap-auth-hpa
 ```
 
----
-
 ## Monitoring
 
-### Logs
+**Logs**
 
-**Docker:**
+Docker:
 ```bash
 docker-compose logs -f ldap-auth
 ```
 
-**Kubernetes:**
+Kubernetes:
 ```bash
 kubectl logs -l app=ldap-auth -f
 ```
 
-### Metrics
+**Metrics**
 
-Access endpoints:
-- Health: `http://localhost:5000/health`
-- User API: `http://localhost:5000/api/user`
-
----
+Watch the health endpoint (`http://localhost:5000/health`) and the user API (`http://localhost:5000/api/user`).
 
 ## Troubleshooting
 
@@ -215,79 +190,40 @@ docker stats ldap-auth
 docker-compose up -d
 ```
 
-See [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) for more troubleshooting.
-
----
+More detail in [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) (Docker) and [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) (Kerberos and authentication).
 
 ## Production Checklist
 
-### Configuration
+**Configuration**
 - [ ] Set `FLASK_DEBUG=False`
 - [ ] Configure proper LDAP server
 - [ ] Set up Kerberos keytab
 - [ ] Configure resource limits
 - [ ] Set appropriate pool size
 
-### Security
+**Security**
 - [ ] Use HTTPS/TLS (via reverse proxy)
 - [ ] Rotate keytabs every 90-180 days
 - [ ] Store keytabs in secrets management
 - [ ] Never commit keytabs to version control
 - [ ] Set proper file permissions (600)
 
-### Monitoring
+**Monitoring**
 - [ ] Set up monitoring/alerting
 - [ ] Configure logging aggregation
 - [ ] Test health checks
 - [ ] Set up backup/recovery
 
-### Testing
+**Testing**
 - [ ] Load test the application
 - [ ] Test failover scenarios
 - [ ] Verify LDAP connectivity
 - [ ] Test Kerberos authentication
 
----
-
 ## Security Best Practices
 
-### Container Security
-- ✅ Non-root user in container
-- ✅ Read-only volumes for configs
-- ✅ Resource limits configured
-- ✅ Health checks enabled
-- ✅ Minimal base image (Python slim)
+The configs in this folder already handle the container basics: non-root user, read-only volumes for configs, resource limits, health checks, and a minimal Python slim base image.
 
-### Kerberos Security
-- ✅ Dedicated service account
-- ✅ Keytab stored in secrets
-- ✅ Read-only keytab mount
-- ⚠️ Rotate keytabs regularly (90-180 days)
-- ⚠️ Never commit keytabs to git
+For Kerberos, use a dedicated service account, store the keytab in secrets management, and mount it read-only. Rotating the keytab every 90-180 days and keeping it out of git is on you.
 
-### Network Security
-- ⚠️ Use HTTPS in production (reverse proxy)
-- ⚠️ Configure proper firewall rules
-- ⚠️ Limit LDAP access to necessary ports
-
----
-
-## Documentation
-
-For detailed information, see:
-
-- **[`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md)** - Complete Docker deployment guide
-- **[`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md)** - Keytab creation and troubleshooting
-- **[`../docs/PRODUCTION_READINESS_ASSESSMENT.md`](../docs/PRODUCTION_READINESS_ASSESSMENT.md)** - Production readiness checklist
-- **[`../README.md`](../README.md)** - Application documentation
-- **[`../PROJECT_STRUCTURE.md`](../PROJECT_STRUCTURE.md)** - Project structure overview
-
----
-
-## Support
-
-For issues or questions:
-1. Check the documentation above
-2. Review logs: `docker-compose logs -f` or `kubectl logs -f`
-3. Test health endpoint: `curl http://localhost:5000/health`
-4. See [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) for authentication issues
+On the network side, terminate HTTPS at a reverse proxy in production, configure proper firewall rules, and limit LDAP access to the necessary ports.

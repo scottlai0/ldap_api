@@ -1,14 +1,23 @@
 # LDAP Server Detection Guide
 
-## Overview
+This guide shows how to find your Active Directory LDAP server address and base DN for configuration.
 
-This guide helps you find your Active Directory LDAP server address and base DN for configuration.
+The fastest way to get both values on a domain-joined Windows machine is this one-liner:
 
----
+```powershell
+# Get all info at once
+$d = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain(); Write-Host "LDAP_SERVER=ldap://$($d.PdcRoleOwner.Name)"; Write-Host "LDAP_BASE_DN=DC=$($d.Name -replace '\.',',DC=')"
+```
 
-## Quick Detection (Windows)
+**Example Output:**
+```
+LDAP_SERVER=ldap://DC01.company.com
+LDAP_BASE_DN=DC=company,DC=com
+```
 
-### Method 1: Using PowerShell (Recommended)
+## Detection on Windows
+
+**PowerShell.** The most complete option — returns the DC holding the PDC role, all domain controllers, and the base DN:
 
 ```powershell
 # Get domain information
@@ -39,7 +48,7 @@ All Domain Controllers:
 Base DN: DC=company,DC=com
 ```
 
-### Method 2: Using Command Prompt
+**Command Prompt.** Works without PowerShell:
 
 ```cmd
 # Get domain name
@@ -60,7 +69,7 @@ Dom Guid: 12345678-1234-1234-1234-123456789012
 Dom Name: company.com
 ```
 
-### Method 3: Using Environment Variables
+**Environment variables.** Quick but only works on a domain-joined machine:
 
 ```powershell
 # Display domain information
@@ -76,11 +85,23 @@ Domain: COMPANY
 Logon Server: \\DC01
 ```
 
----
+**Batch script.** Save as `detect-ldap.bat`:
+```batch
+@echo off
+echo LDAP Server Detection
+echo =====================
+echo.
+echo Domain: %USERDNSDOMAIN%
+echo Logon Server: %LOGONSERVER%
+echo.
+echo Suggested Configuration:
+echo LDAP_SERVER=ldap://%USERDNSDOMAIN%
+echo LDAP_BASE_DN=DC=%USERDNSDOMAIN:.=,DC=%
+```
 
-## Detailed Detection Methods
+## Other Detection Methods
 
-### Using nslookup (DNS Query)
+**DNS query (nslookup).** Finds domain controllers via SRV records, useful from any machine that can reach the domain's DNS:
 
 ```cmd
 # Find domain controllers via DNS
@@ -99,7 +120,7 @@ _ldap._tcp.dc._msdcs.company.com SRV service location:
   svr hostname   = DC01.company.com
 ```
 
-### Using Active Directory PowerShell Module
+**Active Directory PowerShell module.** Requires the RSAT tools:
 
 ```powershell
 # Import AD module (requires RSAT tools)
@@ -123,9 +144,9 @@ NetBIOSName       : COMPANY
 PDCEmulator       : DC01.company.com
 ```
 
-### Using LDAP Query Tool (ldp.exe)
+**ldp.exe (GUI).** Ships with Windows Server and RSAT:
 
-1. Open **ldp.exe** (Windows Server or RSAT tools)
+1. Open **ldp.exe**
 2. **Connection** → **Connect**
 3. Leave server blank (auto-detect) or enter DC name
 4. Port: 389 (LDAP) or 636 (LDAPS)
@@ -134,13 +155,11 @@ PDCEmulator       : DC01.company.com
 7. Select **Bind as currently logged on user**
 8. View **RootDSE** to see domain information
 
----
-
 ## Configuration Examples
 
 ### For .env File
 
-Based on detection results, configure your `.env`:
+Based on detection results, configure your `.env` (see [`.env.example`](../.env.example) for the full template):
 
 ```bash
 # Example 1: Single domain controller
@@ -184,11 +203,11 @@ LDAP_BASE_DN=DC=company,DC=com
     company.com = COMPANY.COM
 ```
 
----
+For the keytab setup that uses this file, see [`deploy/KEYTAB_GUIDE.md`](../deploy/KEYTAB_GUIDE.md).
 
 ## Testing LDAP Connection
 
-### Using PowerShell
+**PowerShell:**
 
 ```powershell
 # Test LDAP connection
@@ -203,17 +222,17 @@ try {
     $result = $searcher.FindOne()
     
     if ($result) {
-        Write-Host "✅ LDAP connection successful!" -ForegroundColor Green
+        Write-Host "LDAP connection successful!" -ForegroundColor Green
         Write-Host "Server: $ldapServer" -ForegroundColor White
         Write-Host "Base DN: $baseDN" -ForegroundColor White
     }
 } catch {
-    Write-Host "❌ LDAP connection failed!" -ForegroundColor Red
+    Write-Host "LDAP connection failed!" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
 }
 ```
 
-### Using ldapsearch (Linux/Docker)
+**ldapsearch (Linux/Docker):**
 
 ```bash
 # Test LDAP connection
@@ -224,7 +243,7 @@ kinit username@COMPANY.COM
 ldapsearch -H ldap://DC01.company.com -b "DC=company,DC=com" -Y GSSAPI "(objectClass=*)" -LLL
 ```
 
-### Using Python (ldap3)
+**Python (ldap3):**
 
 ```python
 from ldap3 import Server, Connection, ALL
@@ -234,20 +253,18 @@ server = Server('ldap://DC01.company.com', get_info=ALL)
 conn = Connection(server, auto_bind=True)
 
 if conn.bound:
-    print("✅ LDAP connection successful!")
+    print("LDAP connection successful!")
     print(f"Server: {server}")
     print(f"Info: {server.info}")
 else:
-    print("❌ LDAP connection failed!")
+    print("LDAP connection failed!")
 
 conn.unbind()
 ```
 
----
-
 ## Common Scenarios
 
-### Scenario 1: Corporate Network (Domain-Joined)
+**Domain-joined machine on the corporate network.** Read the values straight from the environment:
 
 **Detection:**
 ```powershell
@@ -262,7 +279,7 @@ LDAP_SERVER=ldap://yourdomain.com
 LDAP_BASE_DN=DC=yourdomain,DC=com
 ```
 
-### Scenario 2: Multiple Domains (Forest)
+**Multiple domains (forest).** Use the Global Catalog port (3268) for cross-domain queries:
 
 **Detection:**
 ```powershell
@@ -277,7 +294,7 @@ LDAP_SERVER=ldap://DC01.yourdomain.com:3268
 LDAP_BASE_DN=DC=yourdomain,DC=com
 ```
 
-### Scenario 3: Subdomain
+**Subdomain.** The base DN gets one `DC=` component per DNS segment:
 
 **Detection:**
 ```powershell
@@ -291,7 +308,7 @@ LDAP_SERVER=ldap://subdomain.parent.com
 LDAP_BASE_DN=DC=subdomain,DC=parent,DC=com
 ```
 
-### Scenario 4: Remote/VPN Access
+**Remote or VPN access.** Point at a specific DC rather than the domain name, and verify connectivity first:
 
 **Detection:**
 ```powershell
@@ -306,15 +323,10 @@ LDAP_SERVER=ldap://DC01.yourdomain.com
 LDAP_BASE_DN=DC=yourdomain,DC=com
 ```
 
----
-
 ## Troubleshooting
 
-### Issue: Cannot detect domain
+**Cannot detect domain.** The machine is not domain-joined or not on the corporate network. Check domain membership:
 
-**Cause:** Machine not domain-joined or not on corporate network
-
-**Solution:**
 ```powershell
 # Check domain membership
 (Get-WmiObject Win32_ComputerSystem).PartOfDomain
@@ -323,11 +335,8 @@ LDAP_BASE_DN=DC=yourdomain,DC=com
 # Contact IT to get LDAP server details
 ```
 
-### Issue: Multiple domain controllers
+**Multiple domain controllers.** Pick one of these approaches:
 
-**Cause:** Large organization with multiple DCs
-
-**Solution:**
 ```bash
 # Option 1: Use domain name (DNS handles load balancing)
 LDAP_SERVER=ldap://yourdomain.com
@@ -340,11 +349,8 @@ LDAP_SERVER=ldap://DC01.yourdomain.com,ldap://DC02.yourdomain.com
 # Use the returned DC
 ```
 
-### Issue: LDAP connection timeout
+**LDAP connection timeout.** Usually a firewall or network issue. Test the ports:
 
-**Cause:** Firewall or network issue
-
-**Solution:**
 ```powershell
 # Test connectivity
 Test-NetConnection DC01.yourdomain.com -Port 389  # LDAP
@@ -355,84 +361,11 @@ Test-NetConnection DC01.yourdomain.com -Port 3268 # Global Catalog
 # Contact network team if ports are blocked
 ```
 
-### Issue: Wrong Base DN
+**Wrong Base DN.** Derive it from the actual domain name rather than guessing:
 
-**Cause:** Incorrect domain structure
-
-**Solution:**
 ```powershell
 # Get correct Base DN
 $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
 $baseDN = "DC=" + ($domain.Name -replace "\.", ",DC=")
 Write-Host "Correct Base DN: $baseDN"
 ```
-
----
-
-## Quick Reference
-
-### PowerShell One-Liner
-
-```powershell
-# Get all info at once
-$d = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain(); Write-Host "LDAP_SERVER=ldap://$($d.PdcRoleOwner.Name)"; Write-Host "LDAP_BASE_DN=DC=$($d.Name -replace '\.',',DC=')"
-```
-
-**Example Output:**
-```
-LDAP_SERVER=ldap://DC01.company.com
-LDAP_BASE_DN=DC=company,DC=com
-```
-
-### Batch Script
-
-Save as `detect-ldap.bat`:
-```batch
-@echo off
-echo LDAP Server Detection
-echo =====================
-echo.
-echo Domain: %USERDNSDOMAIN%
-echo Logon Server: %LOGONSERVER%
-echo.
-echo Suggested Configuration:
-echo LDAP_SERVER=ldap://%USERDNSDOMAIN%
-echo LDAP_BASE_DN=DC=%USERDNSDOMAIN:.=,DC=%
-```
-
----
-
-## Summary
-
-### Recommended Detection Method
-
-```powershell
-# Run this PowerShell script
-$domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
-Write-Host "`n=== LDAP Configuration ===" -ForegroundColor Cyan
-Write-Host "LDAP_SERVER=ldap://$($domain.PdcRoleOwner.Name)" -ForegroundColor Green
-Write-Host "LDAP_BASE_DN=DC=$($domain.Name -replace '\.',',DC=')" -ForegroundColor Green
-Write-Host "`nCopy these values to your .env file" -ForegroundColor Yellow
-```
-
-### Configuration Checklist
-
-- [ ] Detect LDAP server using PowerShell
-- [ ] Verify Base DN format
-- [ ] Test LDAP connection
-- [ ] Update `.env` file
-- [ ] Test application connectivity
-- [ ] Configure Kerberos (if using Docker)
-
----
-
-## Additional Resources
-
-- **Active Directory Basics**: [Microsoft Docs](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/)
-- **LDAP Protocol**: [RFC 4511](https://tools.ietf.org/html/rfc4511)
-- **Kerberos**: [RFC 4120](https://tools.ietf.org/html/rfc4120)
-
-For application-specific configuration, see:
-- [`../.env.example`](../.env.example) - Environment variables template
-- [`../README.md`](../README.md) - Application documentation
-- [`../deploy/KEYTAB_GUIDE.md`](../deploy/KEYTAB_GUIDE.md) - Kerberos configuration

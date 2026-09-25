@@ -1,14 +1,10 @@
-# Docker Deployment Guide
+# Docker Deployment
 
-## Can This App Run in Docker? ✅ **YES**
-
-The application **works in Docker** but with some important considerations for Windows Authentication.
-
----
+The app runs fine in Docker. The one thing that doesn't work out of the box is Windows Authentication: the container isn't domain-joined, so Kerberos authentication needs a keytab file instead of the machine's own credentials. LDAP queries, connection pooling, and the API endpoints work as-is.
 
 ## Quick Start
 
-### Basic Deployment (No Kerberos)
+**Basic deployment (no Kerberos)** — fine for local development:
 
 ```bash
 # 1. Build and run
@@ -19,7 +15,7 @@ docker-compose up -d
 curl http://localhost:5000/
 ```
 
-### Full Deployment (With Kerberos)
+**Full deployment (with Kerberos):**
 
 ```bash
 # 1. Create keytab
@@ -46,42 +42,11 @@ docker-compose up -d
 curl http://localhost:5000/health
 ```
 
-See detailed instructions below.
+Details on each step are in the Windows Authentication section below.
 
----
+## Image and Compose File
 
-## Deployment Options
-
-### Option 1: Docker (Recommended for Development/Testing)
-
-**Works For:**
-- ✅ LDAP queries (fully functional)
-- ✅ API endpoints
-- ✅ Connection pooling
-- ⚠️ Windows Authentication (requires special configuration)
-
-**Limitations:**
-- Windows Authentication requires the container to be domain-joined OR
-- Use Kerberos keytab file for authentication
-
-### Option 2: IIS (Recommended for Production)
-
-**Works For:**
-- ✅ LDAP queries
-- ✅ API endpoints
-- ✅ Connection pooling
-- ✅ Windows Authentication (native support)
-
-**Benefits:**
-- Seamless Windows Authentication
-- No additional configuration needed
-- Better integration with corporate infrastructure
-
----
-
-## Docker Deployment
-
-### Dockerfile
+The Dockerfile installs the Kerberos client libraries, copies the app, and runs it under Gunicorn:
 
 ```dockerfile
 FROM python:3.12-slim
@@ -114,8 +79,6 @@ EXPOSE 5000
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
 ```
 
-### docker-compose.yml
-
 ```yaml
 version: '3.8'
 
@@ -142,7 +105,7 @@ networks:
     driver: bridge
 ```
 
-### Build and Run
+Build and run:
 
 ```bash
 # Build the image
@@ -160,25 +123,14 @@ docker run -d \
 docker-compose up -d
 ```
 
----
-
 ## Windows Authentication in Docker
 
-### Challenge
+Windows Authentication (SSPI/Kerberos) needs a domain-joined machine or a Kerberos keytab file. A container is neither, so there are three ways to handle it.
 
-Windows Authentication (SSPI/Kerberos) requires:
-1. Domain-joined machine OR
-2. Kerberos keytab file
+**Kerberos keytab (recommended for Docker).** This is the only option that gives real Windows Authentication without joining anything to the domain.
 
-### Solutions
+Step 1 — create a service account if you don't have one. See [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) for detailed instructions. Quick method:
 
-#### Solution 1: Use Kerberos Keytab (Recommended for Docker)
-
-**Step 1: Create Service Account (if not exists)**
-
-See [`KEYTAB_GUIDE.md`](KEYTAB_GUIDE.md) for detailed instructions.
-
-Quick method:
 ```powershell
 # On Domain Controller or with AD tools
 New-ADUser -Name "svc-ldap-app" `
@@ -188,17 +140,15 @@ New-ADUser -Name "svc-ldap-app" `
            -PasswordNeverExpires $true
 ```
 
-**Step 2: Generate Keytab**
+Step 2 — generate the keytab. Use the automated script:
 
-Use the automated script:
 ```powershell
 # Run as Administrator
 .\deploy\create-keytab.ps1
 ```
 
-The script will automatically check for RSAT tools and offer to install them if missing.
+The script checks for RSAT tools and offers to install them if missing. Or create it manually:
 
-Or create manually:
 ```powershell
 # On domain-joined Windows machine
 ktpass -princ HTTP/ldap-app.domain.com@DOMAIN.COM `
@@ -209,15 +159,13 @@ ktpass -princ HTTP/ldap-app.domain.com@DOMAIN.COM `
        -crypto AES256-SHA1
 ```
 
-**Step 3: Create Kerberos Configuration**
+Step 3 — create the Kerberos configuration. Copy the example and edit it with your domain details:
 
-Create `deploy/krb5.conf` from the example:
 ```bash
 # Copy the example file
 cp deploy/krb5.conf.example deploy/krb5.conf
 ```
 
-Edit `deploy/krb5.conf` with your domain details:
 ```ini
 [libdefaults]
     default_realm = YOURDOMAIN.COM
@@ -239,12 +187,13 @@ Edit `deploy/krb5.conf` with your domain details:
     yourdomain.com = YOURDOMAIN.COM
 ```
 
-**Replace:**
+Replace:
 - `YOURDOMAIN.COM` → Your domain in uppercase (e.g., `COMPANY.COM`)
 - `yourdomain.com` → Your domain in lowercase (e.g., `company.com`)
 - `dc01.yourdomain.com` → Your domain controller hostname
 
-**Quick detection (PowerShell):**
+To detect these values automatically (PowerShell):
+
 ```powershell
 # Get your domain information
 $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
@@ -253,36 +202,29 @@ Write-Host "Domain (lowercase): $($domain.Name)"
 Write-Host "Domain Controller: $($domain.PdcRoleOwner.Name)"
 ```
 
-**Step 4: Move Keytab to Deploy Folder**
+Step 4 — move the keytab into the deploy folder:
 
 ```bash
 # Move keytab to deploy folder
 mv app.keytab deploy/app.keytab
 ```
 
-**Step 5: Update docker-compose.yml**
+Step 5 — uncomment the volume mounts in `deploy/docker-compose.yml`:
 
-Uncomment the volume mounts in `deploy/docker-compose.yml`:
 ```yaml
 volumes:
   - ./krb5.conf:/etc/krb5.conf:ro
   - ./app.keytab:/app/keytab:ro
 ```
 
-**Step 6: Set Environment Variable**
+Step 6 — point the app at the keytab by adding this to the environment section of `docker-compose.yml`:
 
-Add to `docker-compose.yml` environment section:
 ```yaml
 environment:
   - KRB5_KTNAME=/app/keytab
 ```
 
-#### Solution 2: Domain-Join the Docker Host
-
-**Requirements:**
-- Docker host must be domain-joined
-- Container runs with host networking
-- More complex setup
+**Domain-join the Docker host.** The host must be domain-joined and the container runs with host networking. More complex overall:
 
 ```bash
 docker run -d \
@@ -291,59 +233,22 @@ docker run -d \
   ldap-auth-app
 ```
 
-#### Solution 3: Skip Windows Auth (Development Only)
-
-For development/testing, the app already falls back to current user:
+**Skip Windows auth (development only).** In development the app falls back to the current user:
 
 ```python
 # In development mode, automatically uses current Windows user
 username = getpass.getuser()
 ```
 
-This works in Docker but won't provide actual authentication.
-
----
+This runs in Docker but provides no actual authentication.
 
 ## Comparison: Docker vs IIS
 
-| Feature | Docker | IIS |
-|---------|--------|-----|
-| **LDAP Queries** | ✅ Full support | ✅ Full support |
-| **Connection Pooling** | ✅ Full support | ✅ Full support |
-| **Windows Auth** | ⚠️ Requires keytab | ✅ Native support |
-| **Setup Complexity** | Medium | Low |
-| **Portability** | ✅ High | ❌ Windows only |
-| **Performance** | ✅ Excellent | ✅ Excellent |
-| **Corporate Integration** | ⚠️ Requires config | ✅ Seamless |
-| **Scalability** | ✅ Easy (K8s) | ⚠️ Limited |
+LDAP queries and connection pooling behave the same in both. The differences are around Windows Authentication and infrastructure. IIS has native Windows Authentication with no extra configuration and fits corporate infrastructure directly, but it only runs on Windows and is harder to scale out. Docker runs anywhere and scales easily with Kubernetes, but Windows Authentication requires a keytab and krb5.conf, and corporate integration takes configuration work.
 
----
+For a corporate intranet that relies on Windows Authentication, IIS is the simpler choice. Docker is a viable production option once Kerberos is configured, and it is the better fit when you need containerization, Kubernetes or cloud deployment, or multi-platform support. For development and testing, use Docker — it is easier to set up and doesn't touch AD.
 
-## Recommended Deployment Strategy
-
-### For Production (Corporate Intranet):
-
-**Use IIS** if:
-- ✅ Windows infrastructure
-- ✅ Need seamless Windows Authentication
-- ✅ Corporate environment
-- ✅ Simple deployment preferred
-
-**Use Docker** if:
-- ✅ Need containerization
-- ✅ Kubernetes/cloud deployment
-- ✅ Multi-platform support
-- ✅ Can configure Kerberos keytab
-
-### For Development/Testing:
-
-**Use Docker** - easier to set up and test
-
----
-
-## Docker Production Deployment
-
-### With Kubernetes
+## Production Deployment with Kubernetes
 
 ```yaml
 apiVersion: apps/v1
@@ -405,11 +310,9 @@ spec:
   type: LoadBalancer
 ```
 
----
-
 ## Health Checks in Docker
 
-The `/health` endpoint works perfectly in Docker:
+The `/health` endpoint works in Docker:
 
 ```yaml
 # docker-compose.yml
@@ -423,16 +326,16 @@ services:
       start_period: 40s
 ```
 
----
-
 ## Environment Variables in Docker
 
-### Using .env file:
+**From a .env file:**
+
 ```bash
 docker run --env-file .env -p 5000:5000 ldap-auth-app
 ```
 
-### Using docker-compose:
+**Via docker-compose:**
+
 ```yaml
 services:
   ldap-auth:
@@ -440,7 +343,8 @@ services:
       - .env
 ```
 
-### Using secrets (production):
+**Using secrets (production):**
+
 ```yaml
 services:
   ldap-auth:
@@ -451,31 +355,13 @@ services:
       - ldap_credentials
 ```
 
----
-
 ## Performance in Docker
 
-Docker performance is **excellent** with connection pooling:
+Docker matches IIS once connection pooling is enabled, and uses a bit less memory:
 
-| Metric | Docker | IIS | Difference |
-|--------|--------|-----|------------|
-| Requests/sec | ~50 | ~50 | Same |
-| Response Time | 200-300ms | 200-300ms | Same |
-| Memory Usage | ~100MB | ~150MB | Docker lighter |
-| CPU Usage | Low | Low | Same |
-
----
-
-## Conclusion
-
-### ✅ **Docker Works Great** for this app!
-
-**Recommended Approach:**
-
-1. **Development:** Use Docker (easier setup)
-2. **Production (Corporate):** Use IIS (seamless Windows Auth)
-3. **Production (Cloud/K8s):** Use Docker with Kerberos keytab
-
-The application is **fully compatible with Docker** and will work with either deployment method. The choice depends on your infrastructure and authentication requirements.
-
-**For your corporate environment with Windows Authentication, IIS is simpler, but Docker is absolutely viable with proper Kerberos configuration.**
+| Metric | Docker | IIS |
+|--------|--------|-----|
+| Requests/sec | ~50 | ~50 |
+| Response Time | 200-300ms | 200-300ms |
+| Memory Usage | ~100MB | ~150MB |
+| CPU Usage | Low | Low |

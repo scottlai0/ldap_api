@@ -38,7 +38,7 @@ if (-not $isAdmin) {
     Write-Host "  1. Right-click PowerShell" -ForegroundColor $ColorGray
     Write-Host "  2. Select 'Run as Administrator'" -ForegroundColor $ColorGray
     Write-Host "  3. Navigate to this directory" -ForegroundColor $ColorGray
-    Write-Host "  4. Run: .\deploy\create-keytab-auto.ps1" -ForegroundColor $ColorGray
+    Write-Host "  4. Run: .\deploy\create-keytab.ps1" -ForegroundColor $ColorGray
     Write-Host ""
     exit 1
 }
@@ -49,7 +49,7 @@ Write-Host ""
 Write-Host "Step 2: Detecting domain..." -ForegroundColor $ColorYellow
 if (-not $Domain) {
     Write-Host "❌ ERROR: Could not detect domain" -ForegroundColor $ColorRed
-    Write-Host "Please specify domain manually: .\create-keytab-auto.ps1 -Domain 'domain.com'" -ForegroundColor $ColorYellow
+    Write-Host "Please specify domain manually: .\create-keytab.ps1 -Domain 'domain.com'" -ForegroundColor $ColorYellow
     exit 1
 }
 Write-Host "✅ Domain detected: $Domain" -ForegroundColor $ColorGreen
@@ -113,7 +113,7 @@ if (-not $ktpassAvailable) {
             Write-Host "Steps:" -ForegroundColor $ColorWhite
             Write-Host "  1. Close this PowerShell window" -ForegroundColor $ColorGray
             Write-Host "  2. Open PowerShell as Administrator again" -ForegroundColor $ColorGray
-            Write-Host "  3. Run: .\deploy\create-keytab-auto.ps1" -ForegroundColor $ColorGray
+            Write-Host "  3. Run: .\deploy\create-keytab.ps1" -ForegroundColor $ColorGray
             Write-Host ""
             exit 0
         } catch {
@@ -153,7 +153,7 @@ if (-not $ktpassAvailable) {
         Write-Host "  ktpass is already installed on Domain Controllers" -ForegroundColor $ColorGray
         Write-Host "  Create the keytab there and copy it to this machine" -ForegroundColor $ColorGray
         Write-Host ""
-        Write-Host "See deploy/INSTALL_RSAT.md for detailed instructions" -ForegroundColor $ColorWhite
+        Write-Host "See deploy/KEYTAB_GUIDE.md for detailed instructions" -ForegroundColor $ColorWhite
         Write-Host ""
         exit 0
     }

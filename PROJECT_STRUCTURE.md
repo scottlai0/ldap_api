@@ -1,6 +1,5 @@
 # Project Structure
 
-## Overview
 LDAP Authentication App with Kerberos support for Windows and Docker deployments.
 
 ## File Structure
@@ -28,7 +27,7 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 │   └── KEYTAB_GUIDE.md             # Keytab creation and usage guide
 │
 ├── docs/                           # Documentation
-│   ├── LDAP_SERVER_DETECTION.md    # 📖 LDAP server detection guide
+│   ├── LDAP_SERVER_DETECTION.md    # LDAP server detection guide
 │   ├── LDAP_ATTRIBUTES.md          # LDAP attribute reference
 │   └── PRODUCTION_READINESS_ASSESSMENT.md  # Production checklist
 │
@@ -38,47 +37,18 @@ LDAP Authentication App with Kerberos support for Windows and Docker deployments
 
 ## Key Files
 
-### Application
-- **`app.py`** - Main Flask application with LDAP authentication
-- **`requirements.txt`** - Python dependencies (Flask, ldap3, etc.)
+`app.py` is the entire application — a single Flask file that handles LDAP authentication. Dependencies are split between `requirements.txt` for local installs and `deploy/requirements-docker.txt` for the Docker image.
 
-### Configuration
-- **`.env.example`** - Template for environment variables
-  - Copy to `.env` and configure for your environment
-  - `.env` is in `.gitignore` (not committed)
+`deploy/create-keytab.ps1` automates keytab creation on Windows: it checks for the RSAT tools, offers to install them if missing, and writes the keytab file. The manual process is documented in `deploy/KEYTAB_GUIDE.md`.
 
-### Deployment
+Two files are templates meant to be copied before use: `.env.example` to `.env`, and `deploy/krb5.conf.example` to `deploy/krb5.conf`. The copied files hold your real settings and are gitignored.
 
-#### Docker
-- **`deploy/Dockerfile`** - Builds the Docker image
-- **`deploy/docker-compose.yml`** - Orchestrates containers
-- **`deploy/requirements-docker.txt`** - Docker-specific Python packages
-
-#### Kerberos/Keytab
-- **`deploy/create-keytab.ps1`** - **Automated keytab creation**
-  - Checks for RSAT tools
-  - Offers to install RSAT automatically
-  - Creates keytab file
-- **`deploy/krb5.conf.example`** - Kerberos configuration template
-  - Copy to `krb5.conf` and configure
-  - `krb5.conf` is in `.gitignore` (not committed)
-
-#### Kubernetes
-- **`deploy/kubernetes.yml`** - Kubernetes deployment manifest
-
-### Documentation
-- **`README.md`** - Main project documentation
-- **`PROJECT_STRUCTURE.md`** - This file
-- **`deploy/README.md`** - Deployment overview
-- **`deploy/DOCKER_DEPLOYMENT.md`** - Detailed Docker deployment guide
-- **`deploy/KEYTAB_GUIDE.md`** - Comprehensive keytab guide
-- **`docs/LDAP_SERVER_DETECTION.md`** - 📖 **Start here!** Find your LDAP server
-- **`docs/LDAP_ATTRIBUTES.md`** - LDAP attribute reference
-- **`docs/PRODUCTION_READINESS_ASSESSMENT.md`** - Production checklist
+If you don't know your LDAP server, start with `docs/LDAP_SERVER_DETECTION.md`.
 
 ## Quick Start
 
-### 1. Local Development (Windows)
+**Local development (Windows):**
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -92,27 +62,26 @@ copy .env.example .env
 python app.py
 ```
 
-### 2. Docker Deployment
+**Docker deployment:**
 
-#### Step 1: Create Keytab
+Create the keytab (run as Administrator):
+
 ```powershell
-# Run as Administrator
 .\deploy\create-keytab.ps1
 ```
 
-The script will automatically:
-- Check if RSAT tools are installed
-- Offer to install RSAT if missing
-- Create the keytab file
+The script checks for the RSAT tools, offers to install them if missing, and creates the keytab file.
 
-#### Step 2: Configure Kerberos
+Configure Kerberos — copy the template and edit it with your domain details:
+
 ```bash
 # Copy and edit krb5.conf
 cp deploy/krb5.conf.example deploy/krb5.conf
 # Edit with your domain details
 ```
 
-#### Step 3: Deploy
+Deploy:
+
 ```bash
 cd deploy
 docker-compose up -d
@@ -120,7 +89,8 @@ docker-compose up -d
 
 See [`deploy/DOCKER_DEPLOYMENT.md`](deploy/DOCKER_DEPLOYMENT.md) for details.
 
-### 3. Kubernetes Deployment
+**Kubernetes deployment:**
+
 ```bash
 # Create keytab secret
 kubectl create secret generic kerberos-keytab --from-file=keytab=./app.keytab
@@ -159,39 +129,21 @@ cd deploy
 ./test-docker.sh
 ```
 
-## Documentation
-
-### Getting Started
-- **[`README.md`](README.md)** - Main project documentation
-- **[`docs/LDAP_SERVER_DETECTION.md`](docs/LDAP_SERVER_DETECTION.md)** - 📖 **Start here!** Find your LDAP server
-
-### Deployment
-- **[`deploy/README.md`](deploy/README.md)** - Deployment overview
-- **[`deploy/DOCKER_DEPLOYMENT.md`](deploy/DOCKER_DEPLOYMENT.md)** - Complete Docker guide
-- **[`deploy/KEYTAB_GUIDE.md`](deploy/KEYTAB_GUIDE.md)** - Keytab creation and usage
-
-### Reference
-- **[`docs/LDAP_ATTRIBUTES.md`](docs/LDAP_ATTRIBUTES.md)** - LDAP attribute reference
-- **[`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md)** - Production checklist
+For a running Docker deployment, tail the logs with `docker-compose logs -f` (from `deploy/`).
 
 ## Security Notes
 
-### Files in `.gitignore` (Not Committed)
+Files that stay out of git:
+
 - `.env` - Your actual LDAP configuration
 - `deploy/krb5.conf` - Your actual Kerberos configuration
 - `*.keytab` - Authentication credentials
 - `*.log` - Log files
 
-### Best Practices
-- ✅ Never commit `.env` or `krb5.conf` to version control
-- ✅ Never commit `*.keytab` files
-- ✅ Use dedicated service accounts (not personal accounts)
-- ✅ Rotate keytabs every 90-180 days
-- ✅ Use secrets management in production (Kubernetes secrets, Azure Key Vault)
+Best practices:
 
-## Support
-
-For issues or questions:
-1. Check the documentation in [`docs/`](docs/) and [`deploy/`](deploy/)
-2. Review the keytab guide for authentication issues
-3. Check logs: `docker-compose logs -f` (Docker) or application logs
+- Never commit `.env` or `krb5.conf` to version control
+- Never commit `*.keytab` files
+- Use dedicated service accounts (not personal accounts)
+- Rotate keytabs every 90-180 days
+- Use secrets management in production (Kubernetes secrets, Azure Key Vault)

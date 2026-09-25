@@ -1,6 +1,6 @@
 # Common LDAP/Active Directory Attributes
 
-This document lists common attributes available in LDAP/Active Directory that the Flask app will retrieve.
+Attributes the Flask app can retrieve from LDAP/Active Directory.
 
 ## Standard User Identity Attributes
 
@@ -69,12 +69,11 @@ This document lists common attributes available in LDAP/Active Directory that th
 - `whenChanged` - When the account was last modified
 - `lastLogon` - Last logon time (not replicated)
 - `lastLogonTimestamp` - Last logon timestamp (replicated across DCs)
-- `pwdLastSet` - When password was last set
 - `lastLogoff` - Last logoff time
 
 ## Password & Security
 
-- `pwdLastSet` - Password last set time
+- `pwdLastSet` - When the password was last set
 - `msDS-UserPasswordExpiryTimeComputed` - Computed password expiration time
 - `userPassword` - Password (usually not readable)
 - `unicodePwd` - Unicode password (usually not readable)
@@ -86,10 +85,7 @@ This document lists common attributes available in LDAP/Active Directory that th
 - `comment` - Comments field
 - `description` - Description field
 
-## Custom Attributes (Examples)
-
-Your organization may have custom attributes specific to your Active Directory schema.
-Check with your IT department for organization-specific attributes.
+Your organization may have custom attributes specific to its Active Directory schema (for example `MTgroup`); check with your IT department for organization-specific ones.
 
 ## Distinguished Name & Path
 
@@ -114,8 +110,4 @@ These are retrieved when `get_operational_attributes=True`:
 
 ## Notes
 
-- The Flask app is configured to retrieve **ALL** attributes automatically using `ldap3.ALL_ATTRIBUTES`
-- Operational/hidden attributes are also retrieved with `get_operational_attributes=True`
-- Not all attributes will have values for every user
-- Custom attributes (like `MTgroup`) depend on your organization's Active Directory schema
-- Some sensitive attributes (like passwords) are not readable even with proper permissions
+The app retrieves all attributes automatically using `ldap3.ALL_ATTRIBUTES`, including operational/hidden attributes when `get_operational_attributes=True`. Not every attribute has a value for every user, custom attributes depend on your organization's schema, and some sensitive attributes (like passwords) are not readable even with proper permissions.

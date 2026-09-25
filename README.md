@@ -1,37 +1,18 @@
 # Flask LDAP Authentication App
 
-A production-ready Flask application that authenticates users via Kerberos/Windows Authentication and retrieves comprehensive user information from Active Directory LDAP.
+Flask application that authenticates users via Kerberos/Windows Authentication and retrieves user information from Active Directory over LDAP.
 
 ## Overview
 
-Enterprise-grade authentication with full LDAP integration:
-- ✅ Kerberos/Windows Authentication (SSPI)
-- ✅ Complete LDAP user profile retrieval (93 attributes)
-- ✅ Connection pooling for high performance
-- ✅ Docker and Kubernetes support
-- ✅ Comprehensive security (input validation, logging, error handling)
-- ✅ Production-ready with unit tests
-- ✅ Health monitoring endpoint
+The app handles Kerberos/Windows Authentication (SSPI), pulls the full LDAP user profile (93 attributes per user), pools LDAP connections for performance, and ships with input validation, structured error handling, a `/health` monitoring endpoint, and a unit test suite.
 
-**Performance:** ~50 requests/second, supports up to 200 concurrent users
+**Performance:** ~50 requests/second, supports up to 200 concurrent users.
 
 ## Deployment Options
 
-### Option 1: Windows IIS (Recommended for Corporate)
-- ✅ Automatic Windows Authentication
-- ✅ No keytab needed
-- ✅ Simplest setup
-- ❌ Windows-only
-
-### Option 2: Docker/Kubernetes (Cloud-Ready)
-- ✅ Platform-independent (Linux, Windows, macOS)
-- ✅ Cloud and Kubernetes ready
-- ✅ Highly scalable
-- ⚠️ Requires keytab setup
+Run it under IIS or in Docker. IIS is the simplest option on Windows: it authenticates the caller via Windows Authentication, so no keytab is needed. Docker runs anywhere (Linux, Windows, macOS, Kubernetes) but Kerberos requires a keytab for the service account.
 
 See [`deploy/`](deploy/) for deployment guides.
-
----
 
 ## Quick Start
 
@@ -75,8 +56,6 @@ docker-compose up -d
 
 See [`deploy/DOCKER_DEPLOYMENT.md`](deploy/DOCKER_DEPLOYMENT.md) for detailed instructions.
 
----
-
 ## Configuration
 
 ### Environment Variables
@@ -103,8 +82,6 @@ FLASK_DEBUG=False
 
 See [`.env.example`](.env.example) for all available options.
 
----
-
 ## API Endpoints
 
 ### `GET /`
@@ -120,7 +97,7 @@ Returns basic authenticated user information.
 ```
 
 ### `GET /api/user`
-Returns detailed user information with **all LDAP attributes** from Active Directory.
+Returns detailed user information with **all LDAP attributes** from Active Directory. See [`docs/LDAP_ATTRIBUTES.md`](docs/LDAP_ATTRIBUTES.md) for the attribute list.
 
 **Behavior:**
 - **Production (IIS/Docker)**: Gets username from Windows/Kerberos Authentication
@@ -179,8 +156,6 @@ Health check endpoint for monitoring.
 }
 ```
 
----
-
 ## Deployment Guides
 
 ### Windows IIS Deployment
@@ -229,7 +204,7 @@ See [`deploy/DOCKER_DEPLOYMENT.md`](deploy/DOCKER_DEPLOYMENT.md) for complete gu
 **Quick Start:**
 ```bash
 # 1. Create keytab
-.\deploy\create-keytab-simple.ps1
+.\deploy\create-keytab.ps1
 
 # 2. Deploy
 cd deploy
@@ -248,8 +223,6 @@ kubectl create secret generic kerberos-keytab --from-file=keytab=./app.keytab
 kubectl apply -f deploy/kubernetes.yml
 ```
 
----
-
 ## Testing
 
 ```bash
@@ -263,85 +236,26 @@ python -m unittest tests/test_app.py
 python tests/test_app.py
 ```
 
-**Test Coverage:**
-- Username sanitization and validation
-- API endpoint responses
-- Error handling and HTTP status codes
-- Security (SQL/LDAP injection prevention)
-- Connection pooling
-- JSON response formats
-
----
+Tests cover username sanitization and validation, API endpoint responses, error handling and HTTP status codes, SQL/LDAP injection prevention, connection pooling, and JSON response formats. For a full readiness review (security fixes, test coverage, remaining gaps), see [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md).
 
 ## Architecture
 
-### How It Works
+The request flow differs by deployment mode. Under IIS, the browser authenticates to IIS through Windows Authentication (Kerberos or NTLM); IIS sets `REMOTE_USER`, the Flask app reads it, queries Active Directory over LDAP, and returns the user data. In Docker, the container authenticates itself: it reads a mounted keytab, obtains a Kerberos ticket from the KDC, and uses that ticket to query LDAP.
 
-#### Windows IIS Deployment
-```
-User Browser
-    │
-    ▼
-IIS (Windows Authentication)
-    │
-    ├─ Kerberos/NTLM authentication
-    ├─ Sets REMOTE_USER
-    │
-    ▼
-Flask App
-    │
-    ├─ Reads REMOTE_USER
-    ├─ Queries LDAP
-    │
-    ▼
-Active Directory
-    │
-    └─ Returns user data
-```
-
-#### Docker Deployment
-```
-User Browser
-    │
-    ▼
-Docker Container
-    │
-    ├─ Reads keytab
-    ├─ Gets Kerberos ticket
-    ├─ Authenticates to AD
-    │
-    ▼
-Flask App
-    │
-    ├─ Queries LDAP
-    │
-    ▼
-Active Directory
-    │
-    └─ Returns user data
-```
-
-### Key Components
-
-- **Flask**: Web framework
-- **ldap3**: LDAP client library
-- **Kerberos**: Authentication protocol (cross-platform)
-- **Active Directory**: User directory (LDAP + Kerberos)
-
----
+The layout of the repo is documented in [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md). The stack is Flask for the web layer, ldap3 as the LDAP client, Kerberos for authentication, and Active Directory as the user directory (LDAP + Kerberos).
 
 ## Security
 
 ### Best Practices
 
-- ✅ Always use HTTPS in production
-- ✅ Ensure proper firewall rules
-- ✅ Use dedicated service accounts (not personal accounts)
-- ✅ Rotate keytabs every 90-180 days
-- ✅ Never commit keytabs to version control
-- ✅ Use secrets management (Kubernetes secrets, Azure Key Vault)
-- ✅ Enable logging and monitoring
-- ✅ Validate all user inputs
+- Always use HTTPS in production
+- Ensure proper firewall rules
+- Use dedicated service accounts (not personal accounts)
+- Rotate keytabs every 90-180 days
+- Never commit keytabs to version control
+- Use secrets management (Kubernetes secrets, Azure Key Vault)
+- Enable logging and monitoring
+- Validate all user inputs
 
 ### Security Features
 
@@ -352,22 +266,9 @@ Active Directory
 - Secure logging (no sensitive data)
 - Connection pooling with timeouts
 
----
-
-## Documentation
-
-- **Project Structure**: [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md)
-- **LDAP Server Detection**: [`docs/LDAP_SERVER_DETECTION.md`](docs/LDAP_SERVER_DETECTION.md) - **Start here!**
-- **Docker Deployment**: [`deploy/DOCKER_DEPLOYMENT.md`](deploy/DOCKER_DEPLOYMENT.md)
-- **Keytab Guide**: [`deploy/KEYTAB_GUIDE.md`](deploy/KEYTAB_GUIDE.md)
-- **LDAP Attributes**: [`docs/LDAP_ATTRIBUTES.md`](docs/LDAP_ATTRIBUTES.md)
-- **Production Readiness**: [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md)
-
----
-
 ## Troubleshooting
 
-### Common Issues
+Check the application logs first (`docker-compose logs -f` for Docker). Common issues:
 
 **Issue: "No credentials were supplied"**
 - **Cause**: Keytab not found or not configured
@@ -387,8 +288,6 @@ Active Directory
 
 See [`deploy/KEYTAB_GUIDE.md`](deploy/KEYTAB_GUIDE.md) for more troubleshooting.
 
----
-
 ## Performance
 
 - **Throughput**: ~50 requests/second
@@ -403,11 +302,3 @@ See [`deploy/KEYTAB_GUIDE.md`](deploy/KEYTAB_GUIDE.md) for more troubleshooting.
 3. Use production WSGI server (Waitress/Gunicorn)
 4. Enable caching for frequently accessed data
 5. Monitor with `/health` endpoint
-
----
-## Support
-
-For issues or questions:
-1. Check the documentation in [`docs/`](docs/) and [`deploy/`](deploy/)
-2. Review the keytab guide for authentication issues
-3. Check logs: `docker-compose logs -f` (Docker) or application logs
